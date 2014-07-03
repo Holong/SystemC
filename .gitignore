@@ -19,3 +19,6 @@
 *.exe
 *.out
 *.app
+*.x
+
+core-src/
