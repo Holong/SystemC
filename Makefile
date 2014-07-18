@@ -16,7 +16,7 @@ FLAGS_COMMON = -g -Wall
 
 PROJECT = main
 VPATH = ./src
-INCDIR = -I./header
+INCDIR = -I./include
 
 OBJS = $(patsubst %.cpp, %.o, $(shell find $(VPATH) -name '*.cpp'))
 SRCS = $(shell find $(VPATH)/*.cpp)
