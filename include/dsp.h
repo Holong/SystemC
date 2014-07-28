@@ -14,12 +14,32 @@ using sc_dt::uint64;
 using std::cout;
 using std::endl;
 
+/* For extension phase */
 DECLARE_EXTENDED_PHASE(internal_ph);
 
 class DSP : public sc_module
 {
+	/*
+	 * DSP operations
+	 */
 	enum command { ADD = 1, SUB };
+
+	/*
+	 * DSP states
+	 *
+	 * READY : DSP doesn't anything. The dsp state will be changed to RUN from READY
+	 * when dsp cmd register value is changed.
+	 *
+	 * RUN : DSP is calculating something.
+	 *
+	 * COMPLETE : DSP operation is completed.
+	 *
+	 */
 	enum state { READY = 0, RUN, COMPLETE };
+
+	/*
+	 * This struct is used to manage a response queue. 
+	 */
 	struct element_packet {
 		list_head* list;
 		tlm::tlm_generic_payload* ptr;
@@ -35,6 +55,11 @@ private:
 	bool response_in_progress;
 
 public:
+	/*
+	 * The DSP has two socket. The one is interrupt_socket, another is data_socket.
+	 * Interrupt_socket models a complete interrupt which occurs at COMPLETE state transition.
+	 * Data_socket models read/write commands.
+	 */
 	tlm_utils::simple_initiator_socket<DSP> interrupt_socket;
 	tlm_utils::simple_target_socket<DSP> data_socket;
 
@@ -51,27 +76,43 @@ public:
 		data_socket.register_nb_transport_fw(this, &DSP::nb_transport_fw);
 	}
 
+	/*
+	 * Implements a non-blocking forward method.
+	 * Phase arguments have to has tlm::BEGIN_REQ or tlm::END_RESP.
+	 */
 	virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& packet, tlm::tlm_phase& phase, sc_time& delay)
 	{
 		peq_for_data.notify(packet, phase, delay);
 		return tlm::TLM_ACCEPTED;
 	}
 
+	/*
+	 * Implements a blocking forward method. Not yet.
+	 */
 	virtual void b_transport(tlm::tlm_generic_payload& packet, sc_time& delay)
 	{
 
 	}
 
+	/*
+	 * Implements a non-blocking backword method. Not yet.
+	 */
 	virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& packet, tlm::tlm_phase& phase, sc_time& delay)
 	{
 		return tlm::TLM_ACCEPTED;
 	}
 
+	/*
+	 * Implements a payload event queue call back method for interrupt. Not yet.
+	 */
 	void peq_for_int_cb(tlm::tlm_generic_payload& packet, const tlm::tlm_phase& phase)
 	{
 
 	}
 
+	/*
+	 * Implements a payload event queue call back method for read/write cmd.
+	 */
 	void peq_for_data_cb(tlm::tlm_generic_payload& packet, const tlm::tlm_phase& phase)
 	{
 		switch(phase)
@@ -81,18 +122,7 @@ public:
 			send_end_req(packet);
 			break;
 		case tlm::END_RESP:
-			packet.release();
-			response_in_progress = false;
-
-			if(!list_empty(&response_wait_list))
-			{
-				tlm::tlm_phase phase = internal_ph;
-				struct element_packet* ptr;
-				ptr = list_first_entry(&response_wait_list, element_packet, list);
-				list_del(ptr->list);
-				peq_for_data.notify(*(ptr->ptr), phase, sc_time(50, SC_NS));
-				free(ptr);
-			}
+			end_transaction(packet);
 			break;
 		default:
 			if(phase == internal_ph)
@@ -176,11 +206,11 @@ public:
 	void send_end_req(tlm::tlm_generic_payload& packet)
 	{
 		tlm::tlm_phase phase = tlm::END_REQ;
-		tlm::tlm_phase int_phase = internal_ph;
 		sc_time delay = sc_time(1, SC_NS);
 
 		data_socket->nb_transport_bw(packet, phase, delay);
 
+		tlm::tlm_phase int_phase = internal_ph;
 		delay = delay + sc_time(50, SC_NS);
 		peq_for_data.notify(packet, int_phase, delay);
 	}
@@ -202,8 +232,22 @@ public:
 		}
 		else if(status == tlm::TLM_COMPLETED)
 		{
-			packet.release();
-			response_in_progress = false;
+			end_transaction(packet);
+		}
+	}
+
+	void end_transaction(tlm::tlm_generic_payload& packet)
+	{
+		packet.release();
+		response_in_progress = false;
+
+		if(!list_empty(&response_wait_list))
+		{
+			struct element_packet* ptr;
+			ptr = list_first_entry(&response_wait_list, element_packet, list);
+			list_del(ptr->list);
+			send_response(*(ptr->ptr));
+			free(ptr);
 		}
 	}
 };
