@@ -21,4 +21,8 @@
 *.app
 *.x
 
+# vi temp file
+*.swp
+
+
 core-src/
