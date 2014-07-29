@@ -193,6 +193,9 @@ public:
 				{
 					struct element_packet* temp = (struct element_packet*)malloc(sizeof(struct element_packet));
 					temp->ptr = &packet;
+					cout << temp << endl;
+					cout << temp->ptr << endl;
+					cout << temp->list << endl;
 					list_add_tail(temp->list, &response_wait_list);
 				}
 				else
@@ -223,7 +226,7 @@ public:
 
 		response_in_progress = true;
 		phase = tlm::BEGIN_RESP;
-		delay = SC_ZERO_TIME;
+		delay = sc_time(50, SC_NS);
 		status = data_socket->nb_transport_bw(packet, phase, delay);
 
 		if(status == tlm::TLM_UPDATED)
