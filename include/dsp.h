@@ -9,9 +9,6 @@
 #include <list>
 #include <iostream>
 
-
-#include "list.h"
-
 using std::list;
 using sc_core::sc_time;
 using sc_dt::uint64;
@@ -110,6 +107,12 @@ public:
 	 */
 	void peq_for_data_cb(tlm::tlm_generic_payload& packet, const tlm::tlm_phase& phase)
 	{
+#ifdef DEBUG
+		if(phase == tlm::BEGIN_REQ)
+			cout << hex << packet.get_address() << " BEGIN REQ at " << sc_time_stamp() << endl;
+		else if(phase == tlm::END_RESP)
+			cout << hex << packet.get_address() << " END_RESP at " << sc_time_stamp() << endl;
+#endif
 		switch(phase)
 		{
 		case tlm::BEGIN_REQ:

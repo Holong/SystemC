@@ -8,8 +8,6 @@
 
 #include "mem_manager.h"
 
-#define DEBUG
-
 class Core: public sc_module
 {
 public:

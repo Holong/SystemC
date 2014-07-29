@@ -97,7 +97,7 @@ $(EXE): $(OBJS) $(SYSTEMC_LIB_DIR)/libsystemc.a
 	@test -x $@
 
 .cpp.o:
-	$(CC) $(CXXFLAGS) -c $< -o $@ -DSC_INCLUDE_FX
+	$(CC) $(CXXFLAGS) -c $< -o $@ -DSC_INCLUDE_FX -DDEBUG
 
 .cc.o:
 	$(CC) $(CXXFLAGS) -c $< -o $@

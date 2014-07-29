@@ -1,6 +1,9 @@
 #ifndef __MEM_MANAGER_H__
 #define __MEM_MANAGER_H__
 
+using std::cout;
+using std::endl;
+
 class mm: public tlm::tlm_mm_interface
 {
 	typedef tlm::tlm_generic_payload gp_t;
@@ -34,7 +37,7 @@ class mm: public tlm::tlm_mm_interface
 mm::gp_t* mm::allocate()
 {
 #ifdef DEBUG
-	fout << "----------------------------- Called allocate(), #trans = " << ++count << endl;
+	cout << "----------------------------- Called allocate(), #trans = " << ++count << endl;
 #endif
 	gp_t* ptr;
 	if (free_list)
@@ -53,7 +56,7 @@ mm::gp_t* mm::allocate()
 void mm::free(gp_t* trans)
 {
 #ifdef DEBUG
-	fout << "----------------------------- Called free(), #trans = " << --count << endl;
+	cout << "----------------------------- Called free(), #trans = " << --count << endl;
 #endif
 	if (!empties)
 	{
