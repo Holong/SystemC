@@ -1,5 +1,4 @@
 #include <systemc.h>
-#include "list.h"
 #include "dsp.h"
 #include "core.h"
 

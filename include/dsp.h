@@ -6,9 +6,13 @@
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
 #include <tlm_utils/peq_with_cb_and_phase.h>
+#include <list>
+#include <iostream>
+
 
 #include "list.h"
 
+using std::list;
 using sc_core::sc_time;
 using sc_dt::uint64;
 using std::cout;
@@ -37,21 +41,13 @@ class DSP : public sc_module
 	 */
 	enum state { READY = 0, RUN, COMPLETE };
 
-	/*
-	 * This struct is used to manage a response queue. 
-	 */
-	struct element_packet {
-		list_head* list;
-		tlm::tlm_generic_payload* ptr;
-	};
-
 private:
 	tlm_utils::peq_with_cb_and_phase<DSP> peq_for_data;
 	tlm_utils::peq_with_cb_and_phase<DSP> peq_for_int;
 
 	tlm::tlm_command int_command;
 	unsigned int operand1, operand2, dsp_status, result;
-	struct list_head response_wait_list;
+	list<tlm::tlm_generic_payload*> wait_queue;
 	bool response_in_progress;
 
 public:
@@ -69,7 +65,6 @@ public:
 		       int_command(tlm::TLM_IGNORE_COMMAND), operand1(0), operand2(0), dsp_status(READY), result(0),  
 		       interrupt_socket("INT_SOCKET"), data_socket("DATA_SOCKET") 
 	{
-		INIT_LIST_HEAD(&response_wait_list);
 		interrupt_socket.register_nb_transport_bw(this, &DSP::nb_transport_bw);
 
 		data_socket.register_b_transport(this, &DSP::b_transport);
@@ -191,12 +186,7 @@ public:
 
 				if(response_in_progress)
 				{
-					struct element_packet* temp = (struct element_packet*)malloc(sizeof(struct element_packet));
-					temp->ptr = &packet;
-					cout << temp << endl;
-					cout << temp->ptr << endl;
-					cout << temp->list << endl;
-					list_add_tail(temp->list, &response_wait_list);
+					wait_queue.push_back(&packet);
 				}
 				else
 				{
@@ -214,7 +204,7 @@ public:
 		data_socket->nb_transport_bw(packet, phase, delay);
 
 		tlm::tlm_phase int_phase = internal_ph;
-		delay = delay + sc_time(50, SC_NS);
+		delay = delay + sc_time(0, SC_NS);
 		peq_for_data.notify(packet, int_phase, delay);
 	}
 
@@ -244,13 +234,13 @@ public:
 		packet.release();
 		response_in_progress = false;
 
-		if(!list_empty(&response_wait_list))
+		if(!wait_queue.empty())
 		{
-			struct element_packet* ptr;
-			ptr = list_first_entry(&response_wait_list, element_packet, list);
-			list_del(ptr->list);
-			send_response(*(ptr->ptr));
-			free(ptr);
+			list<tlm::tlm_generic_payload*>::iterator it;
+			it = wait_queue.begin();
+			tlm::tlm_generic_payload* ptr = *it;
+			send_response(*ptr);
+			wait_queue.erase(it);
 		}
 	}
 };
